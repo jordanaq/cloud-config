@@ -1,11 +1,11 @@
 # LanguageTool grammar/style checker + English n-gram corpus.
 #
-# Native NixOS service, bound to all interfaces (`public`) so Tailscale peers
-# can reach it — but the system firewall (system/configuration.nix) keeps it
-# PRIVATE: 8091 is NOT in allowedTCPPorts [80 443 25], so eth0 drops it; only
-# tailscale0 is a trustedInterface, so the tailnet can reach it. Collabora CODE
-# (./default.nix) talks to it over loopback 127.0.0.1:8091. Port lives here as
-# the single source of truth; office/default.nix reads
+# Loopback-only (`127.0.0.1:8091`), reached two ways:
+#   - Collabora CODE (./default.nix) over loopback, for writing aids;
+#   - tailnet peers via declarative `tailscale serve`
+#     (system/networking/tailscale-serve.nix), giving an https://<ts.net>:8091
+#     front door with no firewall hole and no bind-all — see below.
+# Port lives here as the single source of truth; office/default.nix reads
 # config.services.languagetool.port for the WOPI integration URL.
 {
   lib,
@@ -39,10 +39,10 @@ in
 
     port = port;
 
-    # Bind all interfaces so Tailscale peers can use LanguageTool directly.
-    # The firewall (allowedTCPPorts=[80 443 25], tailscale0 trusted) confines
-    # this to the tailnet — 8091 is blocked on eth0, open on tailscale0.
-    public = true;
+    # Loopback only: Collabora reaches it on 127.0.0.1, tailnet peers come in
+    # through `tailscale serve` (below). Nothing binds a public/LAN interface,
+    # so there is no firewall hole and no accidental internet exposure.
+    public = false;
 
     settings = {
       languageModel = "/var/lib/languagetool-ngrams";
@@ -54,6 +54,10 @@ in
       "-Xmx512m"
     ];
   };
+
+  # Tailnet-only front door: https://tsiru-cloud.<tailnet>.ts.net:8091/v2/check
+  # (ts.net cert, tailnet-only). ⚠️ Port 8091, never 443 — see tailscale-serve.nix.
+  services.tailscaleServe."${toString port}" = "http://127.0.0.1:${toString port}";
 
   systemd.services.languagetool-ngrams = {
     description = "Install LanguageTool English n-gram corpus";

@@ -25,7 +25,7 @@ desktop/GUI/GPU stack and keeps only what the server needs.
 | **Stalwart** | `mail.tsiru.pet` (SMTP `25` inbound, SMTP-S `587` **loopback-only** submission, JMAP + CalDAV/CardDAV over Caddy on `443`) | All-in-one mail + collaboration server, 0.16.21 (prebuilt release overlay — nixpkgs still pins 0.15.5). No `465`/IMAPS/POP3 listeners — the only mail client is JMAP. Outbound relayed via SMTP2GO; TLS via `security.acme` DNS-01. See `system/mail/stalwart/default.nix`. |
 | **Bulwark** | `https://webmail.tsiru.pet` | Self-hosted JMAP webmail client for Stalwart (prebuilt Node bundle — no PHP/DB; accounts live in Stalwart). See `system/mail/bulwark.nix`. |
 | **Collabora** | `https://office.tsiru.pet` | In-browser office editor — the WOPI host for office files opened in Bulwark's Files. Caddy terminates TLS and proxies the loopback CODE AppImage at `[::1]:9983`. See `system/office/default.nix`. |
-| **LanguageTool** | loopback only (`127.0.0.1:8091`) | Grammar/spell backend for Collabora's writing aids. Not exposed publicly. See `system/office/languagetool.nix`. |
+| **LanguageTool** | loopback only (`127.0.0.1:8091`); tailnet via `:8091` serve | Grammar/spell backend for Collabora's writing aids. Not exposed publicly; tailnet peers reach it through `tailscale serve`. See `system/office/languagetool.nix`. |
 | **Vaultwarden** | `https://vault.tsiru.pet` | Bitwarden-compatible password manager (SQLite). Registration closed; `/admin` is tailnet-only. See `system/web/vaultwarden`. |
 | **Uptime Kuma** | tailnet only (`:8443`) | Status/heartbeat monitor. Loopback-only, reached via `tailscale serve` — deliberately **not** in Caddy. See `system/monitoring/uptime-kuma.nix`. |
 | **Tailscale** | — | Private mesh access to the box (no extra public ports). Purely additive. See `system/networking/tailscale.nix`. |
@@ -123,7 +123,8 @@ An `A` record for each public name — the apex `tsiru.pet` plus `home.`,
 `search.`, `library.`, `calibre.`, `links.`, `notes.`, `mail.`, `office.`,
 `webmail.`, `vault.` → `<LINODE_IP>`. (`tsiru.pet` is currently a bare
 placeholder — the personal site lives at `home.tsiru.pet`.) LanguageTool has
-**no** record: it is loopback-only behind Collabora.
+**no** record either: it is loopback-only, reached over the tailnet through
+`tailscale serve` on the `ts.net` name.
 
 Spaceship is the DNS authority. Two certificate paths are in play:
 
@@ -286,7 +287,7 @@ A Bitwarden-compatible password manager, built on NixOS's first-class
 WireGuard on UDP `41641`, relayed via DERP otherwise). Nothing here depends on
 it — it is purely additive.
 
-Two admin surfaces are exposed **only** over the tailnet, and the mappings are
+**Three** services are exposed **only** over the tailnet, and the mappings are
 declarative — `services.tailscaleServe` in `system/networking/tailscale-serve.nix`
 turns each entry into a small `tailscale serve` oneshot that re-asserts itself on
 boot and after any `tailscaled` restart:
@@ -294,14 +295,15 @@ boot and after any `tailscaled` restart:
 ```nix
 services.tailscaleServe."8443"  = "http://127.0.0.1:3001";  # Uptime Kuma
 services.tailscaleServe."10000" = "http://127.0.0.1:8222";  # Vaultwarden /admin
+services.tailscaleServe."8091"  = "http://127.0.0.1:8091";  # LanguageTool /v2
 ```
 
-→ `https://tsiru-cloud.<tailnet>.ts.net:8443` and `:10000`.
+→ `https://tsiru-cloud.<tailnet>.ts.net:8443`, `:10000`, `:8091`.
 
 > ⚠️ **Never use `--https=443`.** Tailscale then binds the tailnet address on
 > `:443`, which collides with Caddy's wildcard `:443` bind — Caddy dies with
-> `address already in use` and *every* public site goes down. Use `8443`
-> (Uptime Kuma) or `10000` (Vaultwarden).
+> `address already in use` and *every* public site goes down. Use a dedicated
+> port (`8443`, `10000`, `8091`).
 
 Uptime Kuma (`https://<box>.<tailnet>.ts.net:8443`) is first-run-setup, then
 loopback-only; the old public `status.` vhost was removed in favour of
