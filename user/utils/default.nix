@@ -1,6 +1,8 @@
 { ... }:
 
 {
+  dotfiles.neovim.minimal = true;
+
   imports = [
     ./bat
     ./btop

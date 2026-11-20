@@ -1,0 +1,4 @@
+[submodule "user/utils/neovim"]
+	path = user/utils/neovim
+	url = git@github.com:jordanaq/neovim-dotfiles.git
+	branch = main

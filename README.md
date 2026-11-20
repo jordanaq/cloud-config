@@ -313,9 +313,17 @@ deletion in Spaceship — pentest F-12). An SSH tunnel
 
 ## Usage
 
+Initialize the Neovim configuration submodule after cloning or pulling:
+
 ```bash
-sudo nixos-rebuild switch --flake .#tsiru-cloud   # system
-home-manager switch --flake .#tsiru               # user (standalone; no nix-shell)
+git submodule update --init --recursive
+```
+
+Include submodules in the flake source when rebuilding:
+
+```bash
+sudo nixos-rebuild switch --flake '.?submodules=1#tsiru-cloud'   # system
+home-manager switch --flake '.?submodules=1#tsiru'               # user (standalone; no nix-shell)
 sudo nixos-rebuild switch --rollback              # revert
 ```
 
