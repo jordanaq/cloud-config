@@ -286,12 +286,17 @@ A Bitwarden-compatible password manager, built on NixOS's first-class
 WireGuard on UDP `41641`, relayed via DERP otherwise). Nothing here depends on
 it — it is purely additive.
 
-Two admin surfaces are exposed **only** over the tailnet, via `tailscale serve`:
+Two admin surfaces are exposed **only** over the tailnet, and the mappings are
+declarative — `services.tailscaleServe` in `system/networking/tailscale-serve.nix`
+turns each entry into a small `tailscale serve` oneshot that re-asserts itself on
+boot and after any `tailscaled` restart:
 
-```bash
-sudo tailscale serve --bg --https=8443  http://127.0.0.1:3001   # Uptime Kuma
-sudo tailscale serve --bg --https=10000 http://127.0.0.1:8222   # Vaultwarden /admin
+```nix
+services.tailscaleServe."8443"  = "http://127.0.0.1:3001";  # Uptime Kuma
+services.tailscaleServe."10000" = "http://127.0.0.1:8222";  # Vaultwarden /admin
 ```
+
+→ `https://tsiru-cloud.<tailnet>.ts.net:8443` and `:10000`.
 
 > ⚠️ **Never use `--https=443`.** Tailscale then binds the tailnet address on
 > `:443`, which collides with Caddy's wildcard `:443` bind — Caddy dies with

@@ -16,12 +16,9 @@
 # `sudo systemctl restart vaultwarden` or the change is ignored.
 #
 # Registration is CLOSED; admin panel is TAILNET-ONLY (vhost blocks /admin, see
-# caddy.nix). Reach it via one-time serve on the box:
-#   sudo tailscale serve --bg --https=10000 http://127.0.0.1:8222
+# caddy.nix). Reached via declarative serve (system/networking/tailscale-serve.nix):
 #   -> https://tsiru-cloud.<tailnet>.ts.net:10000/admin
-# ⚠ Use 10000: 8443 is Uptime Kuma; --https=443 makes tailscaled bind the
-# tailnet addr on :443, colliding with Caddy's wildcard bind and taking EVERY
-# public vhost down (see system/monitoring/uptime-kuma.nix).
+# ⚠ Port 10000 (8443 is Uptime Kuma), never 443 — see tailscale-serve.nix.
 { config, domain, pkgs, ... }:
 
 {
@@ -92,4 +89,7 @@
     # timer running `sqlite3 .backup` + copying attachments:
     backupDir = "/var/backup/vaultwarden";
   };
+
+  # Tailnet-only front door for the admin panel. ⚠️ Port 10000, never 443.
+  services.tailscaleServe."10000" = "http://127.0.0.1:8222";
 }

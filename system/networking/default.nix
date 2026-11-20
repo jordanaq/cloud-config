@@ -4,5 +4,6 @@
 {
   imports = [
     ./tailscale.nix
+    ./tailscale-serve.nix
   ];
 }
